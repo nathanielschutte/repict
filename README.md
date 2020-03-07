@@ -12,7 +12,8 @@ make
 ```
 ### How to use:
 ```
-repict [image.png] -f "function_to_apply" -o [edited_image.png]
+repict <image.bmp> -f <function ID> // default write to out.bmp
+repict <image.bmp> -f <function ID> -o <edited_image.bmp>
 ```
 ## Functionality
 ### Current
