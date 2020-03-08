@@ -2,7 +2,7 @@
 #include <windows.h>
 #include "bmpio.h"
 
-#define MAX_FUNCTIONS 4             // number of functions implemented
+#define MAX_FUNCTIONS 3             // number of functions implemented
 #define MAX_FORMATS 2               // number of image formats supported
 #define DEFAULT_OUT_FILE "out.bmp"  // default output file path
 
@@ -19,7 +19,7 @@ typedef enum {
 typedef enum {F_BMP, F_PNG} FORMAT; // supported I/O formats
 
 typedef char *file_path_t;
-typedef pixel_t * (*RepictFunction) (pixel_t *data, char **args);
+typedef pixel_t * (*RepictFunction) (pixel_t *data, int argc, char **argv);
 
 typedef struct {
     FUNCTION func;          // function identifier
@@ -37,14 +37,19 @@ typedef struct {
 
 bool verbose;           // print verbose
 bool function_def;      // make sure a function has been given
+bool usage_req;
 
 file_path_t file_in;    // file to read from
 file_path_t file_out;   // file to output to (default to DEFAULT_OUT)
 
 function_t function;    // function to be executed
+int f_argc;             // internal arg count
+char **f_argv;          // internal args
 
 pixel_t *pixels;        // image data
+pixel_t *pixels_out;    // output image data
 int32_t width, height;  // dimensions
+int bpp;
 
 
 /* Get file format from input path */
@@ -58,6 +63,9 @@ bool handle_function(const int argc, const char **argv);
 
 /* Open file for use */
 bool open_file(char *file, FORMAT format);
+
+/* Write new pixels to file */
+bool write_file(char *file, FORMAT format);
 
 /* Handle flags */
 bool handle_flags(const int argc, const char **argv);
@@ -74,13 +82,13 @@ void print_verbose(const char *msg);
 
 // ========== FUNCTION SETUP AND METHOD SIGNATURES ==========
 /* Just return data */
-pixel_t *default_op(pixel_t *data, char **args);
+pixel_t *default_op(pixel_t *data, int argc, char **argv);
 
 /* Resize to width: args[0] height: args[1] */
-pixel_t *resize_op(pixel_t *data, char **args);
+pixel_t *resize_op(pixel_t *data, int argc, char **argv);
 
 /* Print help menu */
-pixel_t *print_help(pixel_t *data, char **args);
+pixel_t *print_help(pixel_t *data, int argc, char **argv);
 
 // TODO read from file
 /* Implemented function parameter setup */
@@ -100,14 +108,6 @@ const function_t functions[MAX_FUNCTIONS] = {
         3, // optional select color correction mode
         "<width> <height> <optional: color mode>",
         "resize"
-    },
-    {
-        CONVERT,
-        NULL,
-        0,
-        0,
-        "<format>",
-        "convert"
     },
     {
         HELP,
