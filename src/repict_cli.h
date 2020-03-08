@@ -3,11 +3,13 @@
 #include "bmpio.h"
 
 #define MAX_FUNCTIONS 3             // number of functions implemented
-#define MAX_FORMATS 2               // number of image formats supported
+#define MAX_FORMATS 3               // number of image formats supported
+#define CHANNELS 3                  // color channels per pixel
 #define DEFAULT_OUT_FILE "out.bmp"  // default output file path
 
 #define DEFAULT_USAGE "-f <function>"         // default console usage
 #define DEFAULT_OUT "-o <out.[bmp/png/...]>"    // default console output usage
+#define DEFAULT_ARG "./bin/repict"
 
 typedef enum {
     DEFAULT = 0,        // do nothing
@@ -16,7 +18,7 @@ typedef enum {
     HELP = 3,           // print help
 } FUNCTION;
 
-typedef enum {F_BMP, F_PNG} FORMAT; // supported I/O formats
+typedef enum {NONE, F_BMP, F_PNG} FORMAT; // supported I/O formats
 
 typedef char *file_path_t;
 typedef pixel_t * (*RepictFunction) (pixel_t *data, int argc, char **argv);
@@ -41,6 +43,7 @@ bool usage_req;
 
 file_path_t file_in;    // file to read from
 file_path_t file_out;   // file to output to (default to DEFAULT_OUT)
+char *file_type;        // used for infile type and outfile type
 
 function_t function;    // function to be executed
 int f_argc;             // internal arg count
@@ -48,8 +51,10 @@ char **f_argv;          // internal args
 
 pixel_t *pixels;        // image data
 pixel_t *pixels_out;    // output image data
-int32_t width, height;  // dimensions
-int bpp;
+int32_t width, height;  // dimensionss
+int bpp;                // bits per pixel for png
+
+bitmap_info_header_t* bmp_ih;   // store bmp header for bmpio use
 
 
 /* Get file format from input path */
@@ -71,13 +76,13 @@ bool write_file(char *file, FORMAT format);
 bool handle_flags(const int argc, const char **argv);
 
 /* Print commandline usage of repict for specific function */
-void print_usage_f(const char *arg0, function_t f, bool omit_out);
+void print_usage_f(function_t f, bool omit_out);
 
 /* Print commandline usage of repict generally */
-void print_usage(const char *arg0, bool omit_out);
+void print_usage(bool omit_out);
 
 /* Print a verbose only message */
-void print_verbose(const char *msg);
+void print_verbose(const char *lbl, const char *msg);
 
 
 // ========== FUNCTION SETUP AND METHOD SIGNATURES ==========

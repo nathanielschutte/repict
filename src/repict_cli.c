@@ -43,23 +43,25 @@ pixel_t *print_help(pixel_t *data, int argc, char **argv) {
 
 /* Get file format from input path, return null if not supported */
 FORMAT match_file_format(char *file) {
+    file_type = "error";
     if (file == NULL) {
-        return NULL;
+        return NONE;
     }
 
     char *ext = strchr(file, (int) '.');
     if (ext == NULL) {
-        fprintf(stderr, "Error: enter a valid pathname to image");
-        return NULL;
+        printf("repict: enter a valid pathname to image\n");
+        return NONE;
     }
 
     for (unsigned int i = 0; i < MAX_FORMATS; i++) {
-        if (strcmp(++ext, formats[i].ext)) {
+        if (strcmp(++ext, formats[i].ext) == 0) {
+            file_type = formats[i].ext;
             return formats[i].format; // format match
         }
     }
 
-    return NULL; // no match
+    return NONE; // no match
 }
 
 /* Get function from input */
@@ -80,7 +82,7 @@ bool handle_function(const int argc, const char **argv) {
     char *func_name = argv[0];
     function_t *func = match_function(func_name);
     if (func == NULL) {
-        fprintf(stderr, "repict: no such function\n");
+        printf("repict: no such function\n");
         return false;
     }
     function = *func;
@@ -97,12 +99,12 @@ bool handle_function(const int argc, const char **argv) {
         f_argc = a - 1;
 
         if (f_argc < func->arg_min) {
-            fprintf(stderr, "repict: too few arguments given to specified function");
+            printf("repict: too few arguments given to specified function\n");
             usage_req = true;
             return false;
         }
         else if (f_argc > func->arg_max) {
-            fprintf(stderr, "repict: too many arguments given to specified function");
+            printf("repict: too many arguments given to specified function\n");
             usage_req = true;
             return false;
         }
@@ -111,7 +113,7 @@ bool handle_function(const int argc, const char **argv) {
         return true;
 
     }
-    fprintf(stderr, "repict: too few arguments given to specified function");
+    printf("repict: too few arguments given to specified function\n");
     usage_req = true;
     return false;
 }
@@ -121,12 +123,13 @@ bool open_file(char *file, FORMAT format) {
     if (file == NULL) {
         return false;
     }
+    
+    pixel_t *pi;
     switch (format) {
 
         // use bmpio to load BMP from file
         case F_BMP:
-            bitmap_info_header_t* bmp_ih;
-            pixel_t *pi = load_bmp(file, bmp_ih);
+            pi = load_bmp(file, bmp_ih);
             if (pi == NULL) {
                 return false;
             }
@@ -136,7 +139,7 @@ bool open_file(char *file, FORMAT format) {
 
         break;
         case F_PNG:
-            pixels = stbi_load(file, &width, &height, &bpp, 3);
+            pixels = stbi_load(file, &width, &height, &bpp, CHANNELS);
         break;
         default:
         return false;
@@ -150,13 +153,22 @@ bool write_file(char *file, FORMAT format) {
     }
     switch (format) {
         case F_BMP:
-            stbi_write_bmp(file, width, height, 3, pixels_out);
+
+            // use bmpio for now
+            if (! save_bmp(file, bmp_ih, pixels_out)) {
+                printf("repict: could not save BMP file\n");
+                return false;
+            }
+
+            //stbi_write_bmp(file, width, height, CHANNELS, pixels_out);
         break;
+
         case F_PNG:
-            stbi_write_png(file, width, height, 3, pixels_out, width*3);
+            stbi_write_png(file, width, height, CHANNELS, pixels_out, width*CHANNELS);
         break;
+
         default:
-            return false;
+        return false;
     }
     return true;
 }
@@ -164,8 +176,9 @@ bool write_file(char *file, FORMAT format) {
 /* Handle flags */
 bool handle_flags(const int argc, const char **argv) {
     for (unsigned int i = 2; i < argc; i++) {
-        if(argv[i][0] == '-') {
-            const char flag = argv[i][1];
+        char *arg = argv[i];
+        if(arg[0] == '-') {
+            const char flag = arg[1];
             switch (flag) {
                 case 'f': 
                 if (argc >= i) {
@@ -174,20 +187,25 @@ bool handle_flags(const int argc, const char **argv) {
                     }
                 }
                 break;
+
                 case 'v':
                 verbose = true;
                 break;
+
                 case 'o':
                 if (argc >= i) {
                     file_out = argv[i + 1];
                 }
                 else {
-                    fprintf(stderr, "repict: no output file specified\n");
+                    printf("repict: no output file specified\n");
                 }
                 break;
             }
         }
     }
+    return true;
+
+    // no flags
 }
 
 
@@ -197,27 +215,26 @@ int main(const int argc, const char** argv) {
     function_def = false;
     usage_req = false;
     file_out = DEFAULT_OUT_FILE;
-    char *exec = argv[0];
     clear_buffer();
     
     // get input file or fail
     if (argc < 4) {
-        fprintf(stderr, "repict: not enough arguments provided\n");
-        print_usage(exec, false);
+        printf("repict: not enough arguments provided\n");
+        print_usage(false);
         return 0;
     }
     file_in = argv[1];
 
     // check input file format
     FORMAT format = match_file_format(file_in);
-    if (format == NULL) {
-        fprintf(stderr, "repict: error reading file format of input\n");
+    if (format == NONE) {
+        printf("repict: error reading file format of input\n");
         return 0;
     }
 
     // open file, store data in pixels
     if (! open_file(file_in, format)) {
-        fprintf(stderr, "repict: failure opening file\n");
+        printf("repict: failure opening file\n");
         return 0;
     }
 
@@ -225,14 +242,16 @@ int main(const int argc, const char** argv) {
     if (! handle_flags(argc, argv)) {
         // errors handled within
         if (usage_req) {
-            print_usage_f(argv[0], function, false);
+            print_usage_f(function, false);
         }
         return 0;
     }
 
+    print_verbose("Input filetype:", file_type);
+
     if (! function_def) {
-        fprintf(stderr, "repict: no function specification provided\n");
-        print_usage(exec, false);
+        printf("repict: no function specification provided\n");
+        print_usage(false);
         return 0;
     }
 
@@ -242,13 +261,16 @@ int main(const int argc, const char** argv) {
 
     // write output to output file with format specification
     FORMAT format_out = match_file_format(file_out);
-    if (format_out == NULL) {
-        fprintf(stderr, "repict: error reading file format of output\n");
+    if (format_out == NONE) {
+        printf("repict: error reading file format of output\n");
         return 0;
     }
 
-    if (! write_file(file_out, format_out)) {
+    print_verbose("Output filetype:", file_type);
 
+    if (! write_file(file_out, format_out)) {
+        printf("repict: failure writing output file\n");
+        return 0;
     }
 
     // free image memory, clean
@@ -259,34 +281,44 @@ int main(const int argc, const char** argv) {
 
 
 /* Print a verbose only message */
-void print_verbose(const char *msg) {
+void print_verbose(const char *lbl, const char *msg) {
     if(verbose) {
+        printf(lbl);
+        printf(" ");
         printf(msg);
         printf("\n");
     }
 }
 
 /* Print commandline usage of repict function */
-void print_usage_f(const char *arg0, function_t f, bool omit_out) {
-    printf(arg0);
-    printf(" ");
-    printf(DEFAULT_USAGE);
-    if (! omit_out) {
-        printf(DEFAULT_OUT);
-    }
-}
-
-/* Print commandline usage of repict generally */
-void print_usage(const char *arg0, bool omit_out) {
+void print_usage_f(function_t f, bool omit_out) {
     clear_buffer();
-    push_buffer(arg0, strlen(arg0));
+    push_buffer("Usage:  ", 8);
+    push_buffer(DEFAULT_ARG, strlen(DEFAULT_ARG));
     push_buffer(" ", 1);
-    push_buffer(DEFAULT_USAGE, strlen(DEFAULT_USAGE));
+    push_buffer("-f ", 3);
+    push_buffer(f.name, strlen(f.name));
+    push_buffer(" ", 1);
+    push_buffer(f.usage, strlen(f.usage));
     if (! omit_out) {
+        push_buffer(" ", 1);
         push_buffer(DEFAULT_OUT, strlen(DEFAULT_OUT));
     }
     print_buffer();
-    printf("\n");
+}
+
+/* Print commandline usage of repict generally */
+void print_usage(bool omit_out) {
+    clear_buffer();
+    push_buffer("Usage:  ", 8);
+    push_buffer(DEFAULT_ARG, strlen(DEFAULT_ARG));
+    push_buffer(" ", 1);
+    push_buffer(DEFAULT_USAGE, strlen(DEFAULT_USAGE));
+    if (! omit_out) {
+        push_buffer(" ", 1);
+        push_buffer(DEFAULT_OUT, strlen(DEFAULT_OUT));
+    }
+    print_buffer();
 }
 
 

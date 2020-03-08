@@ -49,7 +49,7 @@ typedef struct {
     uint8_t a;
 } rgb_t;
 
-typedef short int pixel_t;
+typedef unsigned char pixel_t;
 
 
 /**
@@ -105,7 +105,7 @@ pixel_t *load_bmp(const char *filename, bitmap_info_header_t *bmp_info_head) {
         return NULL;
     }
 
-    size_t pad, count = 0;
+    size_t pad;
     unsigned char c;
     pad = 4*ceil(bmp_info_head->nbytes*bmp_info_head->width/32.) - bmp_info_head->width;
     for (size_t i = 0; i < bmp_info_head->height; i++) {

@@ -1,15 +1,22 @@
 CC=gcc
 CFLAGS=-c -Wall -g -I src
 SDIR=src
-SUPERDIR=BUILD
-BDIR=$(SUPERDIR)/bin
-ODIR=$(SUPERDIR)/obj
-EXC=mallard
+USESUPER=n # 'n' bin and obj left alone. 'y' put bin and obj in super dir
+SUPERDIR=build
+BDIR=bin
+ODIR=obj
+EXC=repict
 MKDIR=mkdir -p
 
-all: main $(BDIR) $(ODIR)
+all: main rename $(BDIR) $(ODIR)
 	mv *.o $(ODIR)
 	mv $(EXC) $(BDIR)
+
+rename:
+ifeq ($(USESUPER),y)
+	BDIR=$(SUPERDIR)/$(BDIR)
+	ODIR=$(SUPERDIR)/$(ODIR)
+endif
 
 $(BDIR):
 	$(MKDIR) $@
@@ -24,9 +31,13 @@ main: *.o
 	$(CC) $(CFLAGS) $(SDIR)/*.c
 
 clean:
-	ifeq $(SUPERDIR) "."
+ifeq ($(USESUPER),y)
+	rm -r $(SUPERDIR)
+else
 	rm -r $(BDIR)
 	rm -r $(ODIR)
-	else
-	rm -r $(SUPERDIR)
-	endif
+endif
+
+dirty:
+	rm *.o
+	rm *.exe
