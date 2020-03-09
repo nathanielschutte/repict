@@ -5,7 +5,7 @@
 #define MAX_FUNCTIONS 3             // number of functions implemented
 #define MAX_FORMATS 3               // number of image formats supported
 #define CHANNELS 3                  // color channels per pixel
-#define DEFAULT_OUT_FILE "out.bmp"  // default output file path
+#define DEFAULT_OUT_FILE "out/out.png"  // default output file path
 
 #define DEFAULT_USAGE "-f <function>"         // default console usage
 #define DEFAULT_OUT "-o <out.[bmp/png/...]>"    // default console output usage
