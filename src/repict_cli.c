@@ -37,8 +37,26 @@ pixel_t *resize_op(pixel_t *data, int argc, char **argv) {
 
 /* Print help menu
     doesn't really require this method signature but it has to align */
-pixel_t *print_help(pixel_t *data, int argc, char **argv) {
-    printf("HELP: %u\n\n", argc);
+void print_help() {
+    printf("\nFunctions:\n");
+    for (unsigned int i = 0; i < MAX_FUNCTIONS; i++) {
+        printf(" - ");
+        printf(functions[i].name);
+        printf(":  \t");
+        print_usage_f(functions[i], true);
+    }
+    printf("\nUse -o <out.png> to set custom output file (use supported extensions)\n");
+    printf("Use -v to turn on verbose feedback\n");
+    printf("Use -n to set number of times function applied\n\n");
+    printf("Supported extensions:\n");
+    for (unsigned int i = 0; i < MAX_FORMATS; i++) {
+        if (formats[i].format == NONE) {
+            continue;
+        }
+        printf(" - ");
+        printf(formats[i].ext);
+        printf("\n");
+    }
 }
 
 /* Get file format from input path, return null if not supported */
@@ -216,20 +234,37 @@ int main(const int argc, const char** argv) {
     usage_req = false;
     file_out = DEFAULT_OUT_FILE;
     clear_buffer();
+
+    // check for help
+    if(argc > 1 && strcmp(argv[1], "help") == 0) {
+        print_help();
+        return 0;
+    }
     
     // get input file or fail
     if (argc < 4) {
         printf("repict: not enough arguments provided\n");
-        print_usage(false);
+        print_usage(true);
         return 0;
     }
+
     file_in = argv[1];
 
-    // check input file format
-    FORMAT format = match_file_format(file_in);
-    if (format == NONE) {
-        printf("repict: error reading file format of input\n");
-        return 0;
+    // special case: use r to use default out file as input
+    FORMAT format;
+    if (strcmp(file_in, "r") == 0) {
+        file_in = DEFAULT_OUT_FILE;
+        format = DEFAULT_OUT_FORMAT.format;
+        file_type = DEFAULT_OUT_FORMAT.ext;
+    }
+    else {
+
+        // check input file format
+        format = match_file_format(file_in);
+        if (format == NONE) {
+            printf("repict: error reading file format of input\n");
+            return 0;
+        }
     }
 
     // open file, store data in pixels

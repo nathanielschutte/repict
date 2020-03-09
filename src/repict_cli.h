@@ -2,14 +2,14 @@
 #include <windows.h>
 #include "bmpio.h"
 
-#define MAX_FUNCTIONS 3             // number of functions implemented
+#define MAX_FUNCTIONS 2             // number of functions implemented
 #define MAX_FORMATS 3               // number of image formats supported
 #define CHANNELS 3                  // color channels per pixel
-#define DEFAULT_OUT_FILE "out/out.png"  // default output file path
+#define DEFAULT_OUT_FILE "out/output.png"  // default output file path
 
-#define DEFAULT_USAGE "-f <function>"         // default console usage
+#define DEFAULT_USAGE "<image.png> -f <function>"         // default console usage
 #define DEFAULT_OUT "-o <out.[bmp/png/...]>"    // default console output usage
-#define DEFAULT_ARG "./bin/repict"
+#define DEFAULT_ARG "repict"
 
 typedef enum {
     DEFAULT = 0,        // do nothing
@@ -36,6 +36,8 @@ typedef struct {
     FORMAT format;          // format identifier
     char *ext;              // format extension
 } format_t;
+
+static const format_t DEFAULT_OUT_FORMAT = {{F_PNG}, {"png"}};
 
 bool verbose;           // print verbose
 bool function_def;      // make sure a function has been given
@@ -93,7 +95,7 @@ pixel_t *default_op(pixel_t *data, int argc, char **argv);
 pixel_t *resize_op(pixel_t *data, int argc, char **argv);
 
 /* Print help menu */
-pixel_t *print_help(pixel_t *data, int argc, char **argv);
+void print_help();
 
 // TODO read from file
 /* Implemented function parameter setup */
@@ -114,14 +116,6 @@ const function_t functions[MAX_FUNCTIONS] = {
         "<width> <height> <optional: color mode>",
         "resize"
     },
-    {
-        HELP,
-        print_help,
-        0,
-        0,
-        "",
-        "help"
-    }
 };
 
 const format_t formats[MAX_FORMATS] = {

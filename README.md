@@ -11,8 +11,12 @@ make
 ```
 ### How to use:
 ```
-./bin/repict <image.bmp> -f <function> <...>
-./bin/repict <image.bmp> -f <function> <...> -o <image_out.bmp>
+repict <image.bmp> -f <function> <...>
+repict <image.bmp> -f <function> <...> -o <image_out.bmp>
+```
+### For complete help:
+```
+repict help
 ```
 ### Notes:
 - Default write out file is out.bmp
@@ -22,13 +26,12 @@ make
 - -o set image output file
 - -n run multiple times on image (not all functions support this)
 - -v verbose console output
-- -r run on all images in directory
+- -r run on all images in directory (not supported yet)
 ## Functionality
 ### Current
-- None!
+- File format conversion
 ### Future
 - Canny edge detection
-- File format conversion
 - B&W filter
 - Gaussian blur
 
