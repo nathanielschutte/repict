@@ -35,7 +35,7 @@
 
 /* Just return data */
 pixel_t *default_op(pixel_t *data, int argc, char **argv) {
-    return data;
+    return repict_get_result();
 }
 
 /* Resize to width: args[0] height: args[1] 
@@ -56,11 +56,8 @@ pixel_t *average_op(pixel_t *data, int argc, char **argv) {
 
 /* Apply B&W filter */
 pixel_t *bw_op(pixel_t *data, int argc, char **argv) {
-    pixel_t *p;
-    repict_bw(p, false);
-
-    channels_out = 1;
-    return p;
+    repict_bw(false);
+    return repict_get_result();
 }
 
 /* Find edges */
@@ -305,8 +302,10 @@ int main(const int argc, const char** argv) {
     }
 
     // call function exec (TODO: implement multiple calls)
-    repict_set_source(file_in, width, height, CHANNELS);
-    pixels_out = function.exec(pixels, f_argc, f_argv);
+    repict_set_source(pixels, width, height, CHANNELS, true);
+    pixels_out = function.exec(pixels, f_argc, f_argv);     // get output data
+    channels_out = repict_get_working_channels();           // get output channels for write
+
     free(f_argv);
 
     // write output to output file with format specification

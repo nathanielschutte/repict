@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-c -Wall -g -I src
+CFLAGS=-c -g -I src
 SDIR=src
 USESUPER=n # 'n' bin and obj left alone. 'y' put bin and obj in super dir
 SUPERDIR=build
