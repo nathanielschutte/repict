@@ -5,7 +5,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#define MAX_BUFFER_SIZE 120
+#define MAX_BUFFER_SIZE 300
 
 char buffer[MAX_BUFFER_SIZE];
 int buf_ptr = 0;

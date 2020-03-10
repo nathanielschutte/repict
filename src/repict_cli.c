@@ -15,25 +15,67 @@
 
 #include "repict_cli.h"
 #include "buffer_out.h"
-#include "repict.c"
+#include "repict.h"
 
 #define STB_IMAGE_IMPLEMENTATION
-#define STBI_ONLY_PNG
+#define STBI_NO_PSD
+#define STBI_NO_TGA
+#define STBI_NO_GIF
+#define STBI_NO_HDR
+#define STBI_NO_PIC
+#define STBI_NO_PNM
 #include "stb_image.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
 
+// ======== Perform desired function using repict library, 
+// return result after specifying output channels ========
+
 /* Just return data */
 pixel_t *default_op(pixel_t *data, int argc, char **argv) {
     return data;
 }
 
-/* Resize to width: args[0] height: args[1] */
+/* Resize to width: args[0] height: args[1] 
+    WIP... */
 pixel_t *resize_op(pixel_t *data, int argc, char **argv) {
     return data;
 }
+
+/* Apply gaussian filter kernel size: arg[0] n -> (2n + 1), sigma arg[1] (-1 for default) */
+pixel_t *gauss_op(pixel_t *data, int argc, char **argv) {
+
+}
+
+/* Apply fast blur filter kernel size: arg[0] (2n + 1) */
+pixel_t *average_op(pixel_t *data, int argc, char **argv) {
+
+}
+
+/* Apply B&W filter */
+pixel_t *bw_op(pixel_t *data, int argc, char **argv) {
+    repict_set_channels(CHANNELS);  // in channels (set globally)
+    channels_out = 1;               // out channels
+
+    pixel_t *p = repict_alloc_image(width, height, 1);
+    repict_bw(data, p, width, height, false);
+    return p;
+}
+
+/* Find edges */
+pixel_t *canny_op(pixel_t *data, int argc, char **argv) {
+    return data;
+}
+
+/* Apply custom kernal to image from input kernel.txt file */
+pixel_t *custom_kernel_op(pixel_t *data, int argc, char **argv) {
+
+}
+
+// =======================================================
+
 
 /* Print help menu
     doesn't really require this method signature but it has to align */
@@ -141,27 +183,7 @@ bool open_file(char *file, FORMAT format) {
     if (file == NULL) {
         return false;
     }
-    
-    pixel_t *pi;
-    switch (format) {
-
-        // use bmpio to load BMP from file
-        case F_BMP:
-            pi = load_bmp(file, bmp_ih);
-            if (pi == NULL) {
-                return false;
-            }
-            pixels = pi;
-            width = bmp_ih->width;
-            height = bmp_ih->height;
-
-        break;
-        case F_PNG:
-            pixels = stbi_load(file, &width, &height, &bpp, CHANNELS);
-        break;
-        default:
-        return false;
-    }
+    pixels = stbi_load(file, &width, &height, &bpp, CHANNELS);
     return true;
 }
 
@@ -171,18 +193,11 @@ bool write_file(char *file, FORMAT format) {
     }
     switch (format) {
         case F_BMP:
-
-            // use bmpio for now
-            if (! save_bmp(file, bmp_ih, pixels_out)) {
-                printf("repict: could not save BMP file\n");
-                return false;
-            }
-
-            //stbi_write_bmp(file, width, height, CHANNELS, pixels_out);
+            stbi_write_bmp(file, width, height, channels_out, pixels_out);
         break;
 
         case F_PNG:
-            stbi_write_png(file, width, height, CHANNELS, pixels_out, width*CHANNELS);
+            stbi_write_png(file, width, height, channels_out, pixels_out, width*channels_out);
         break;
 
         default:
@@ -291,6 +306,7 @@ int main(const int argc, const char** argv) {
     }
 
     // call function exec (TODO: implement multiple calls)
+    repict_set_channels(CHANNELS);
     pixels_out = function.exec(pixels, f_argc, f_argv);
     free(f_argv);
 
@@ -309,9 +325,7 @@ int main(const int argc, const char** argv) {
     }
 
     // free image memory, clean
-    if (format == F_PNG) {
-        stbi_image_free(pixels);
-    }
+    stbi_image_free(pixels);
 }
 
 
