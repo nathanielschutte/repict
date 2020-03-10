@@ -53,27 +53,37 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+#ifndef M_PI // make sure to define pi
+#define M_PI 3.1415926535
+#endif
+
+// algorithm default constants
 #define GAUSS_SIZE_DEFAULT 2f
 #define GAUSS_SIG_DEFAULT 1.4f
 #define GAUSS_LOW_THRESHOLD 2.5f
 #define GAUSS_HIGH_THRESHOLD 7.5f
-#define M_PI 3.1415926535
 
+// data constants
 #define KERNEL_MAX 100
 #define PIXEL_MAX 255
 
+// UI
 #define ERROR_MSG "Error:"
 
+// macros
 #define KERNEL(c) (2*c + 1)
+
 
 typedef unsigned char pixel_t;      // 8-bit format for a pixel channel type
 typedef float kernel_t;             // kernel unit type
 
+// internal store
 size_t kernel_n         = 1;        // dimensions of kernel (kernel dim -> 2*kernel_n + 1)
 size_t kernel_n_store   = 0;        // store old dimensions to minimize realloc
 kernel_t *kernel        = NULL;     // pointer to kernel matrix
 pixel_t *working_img    = NULL;     // current working copy of output image
 
+// image dimensions
 static unsigned int r_channels   = 3;    // channels of source image (can be changed)
 static int32_t r_width           = 0;    // dimensions of source image (can be changed)
 static int32_t r_height          = 0;    // ...
@@ -102,6 +112,8 @@ void repict_clean(void);                                                        
 
 // ======== Utility functions ========
 static void error(const char *err);
+
+
 
 /*
  * Kernel set table:
@@ -160,6 +172,11 @@ static void m_alloc_working(int32_t w, int32_t h, int bpp) {
 
 static void m_swap_working(pixel_t *output) {
     //working_img = repict_copy_image(output, width, height, channels);
+
+    // working_img holds obsolete data, free
+    free(working_img);
+
+    // output is the allocation from a repict function that is current
     working_img = output;
 }
 

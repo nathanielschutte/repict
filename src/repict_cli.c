@@ -109,9 +109,10 @@ FORMAT match_file_format(char *file) {
         printf("repict: enter a valid pathname to image\n");
         return NONE;
     }
+    ext++;
 
     for (unsigned int i = 0; i < MAX_FORMATS; i++) {
-        if (strcmp(++ext, formats[i].ext) == 0) {
+        if (strcmp(ext, formats[i].ext) == 0) {
             file_type = formats[i].ext;
             return formats[i].format; // format match
         }
@@ -134,7 +135,7 @@ function_t *match_function(char *in) {
 }
 
 /* Handle -f function select and args, call function */
-bool handle_function(const int argc, const char **argv) {
+bool handle_function(const int argc, char **argv) {
     char *func_name = argv[0];
     function_t *func = match_function(func_name);
     if (func == NULL) {
@@ -203,7 +204,7 @@ bool write_file(char *file, FORMAT format) {
 }
 
 /* Handle flags */
-bool handle_flags(const int argc, const char **argv) {
+bool handle_flags(const int argc, char **argv) {
     for (unsigned int i = 2; i < argc; i++) {
         char *arg = argv[i];
         if(arg[0] == '-') {
@@ -224,6 +225,7 @@ bool handle_flags(const int argc, const char **argv) {
                 case 'o':
                 if (argc >= i) {
                     file_out = argv[i + 1];
+                    out_def = true;
                 }
                 else {
                     printf("repict: no output file specified\n");
@@ -239,11 +241,18 @@ bool handle_flags(const int argc, const char **argv) {
 
 
 /* Main */
-int main(const int argc, const char** argv) {
+int main(const int argc, char** argv) {
+
+    // cli status
     verbose = false;
     function_def = false;
+    out_def = false;
     usage_req = false;
+
+    // assume default output file
     file_out = DEFAULT_OUT_FILE;
+
+    // for usage buffer
     clear_buffer();
 
     // check for help
@@ -261,7 +270,7 @@ int main(const int argc, const char** argv) {
 
     file_in = argv[1];
 
-    // special case: use r to use default out file as input
+    // special case: use r to use default out file as input (out/output.png)
     FORMAT format;
     if (strcmp(file_in, "r") == 0) {
         file_in = DEFAULT_OUT_FILE;
@@ -292,11 +301,34 @@ int main(const int argc, const char** argv) {
         }
         return 0;
     }
-
     print_verbose("Input filetype:", file_type);
 
+    // write output to output file with format specification
+    FORMAT format_out = match_file_format(file_out);
+    if (format_out == NONE) {
+        printf("repict: error reading file format of output\n");
+        return 0;
+    }
+    print_verbose("Output filetype:", file_type);
+
+    // no function defined, only continue if its a format converstion
     if (! function_def) {
-        printf("repict: no function specification provided\n");
+
+        // output defined, its a format converstion (or just a rewrite/rename)
+        if (out_def) {
+            print_verbose("Image write:", "writing to new location/format");
+            pixels_out = pixels;    // just use pixels input as output
+
+            // write out using file out and format out
+            if (! write_file(file_out, format_out)) {
+                printf("repict: failure writing output file\n");
+                return 0;
+            }
+            return 1; // finish by writing file to new format
+        }
+
+        // no output specified either, so quit
+        printf("repict: no function specification provided.\n");
         print_usage(false);
         return 0;
     }
@@ -308,15 +340,6 @@ int main(const int argc, const char** argv) {
 
     free(f_argv);
 
-    // write output to output file with format specification
-    FORMAT format_out = match_file_format(file_out);
-    if (format_out == NONE) {
-        printf("repict: error reading file format of output\n");
-        return 0;
-    }
-
-    print_verbose("Output filetype:", file_type);
-
     if (! write_file(file_out, format_out)) {
         printf("repict: failure writing output file\n");
         return 0;
@@ -325,6 +348,8 @@ int main(const int argc, const char** argv) {
     // free image memory
     repict_clean();
     stbi_image_free(pixels);
+
+    return 1;
 }
 
 
@@ -344,7 +369,7 @@ void print_usage_f(function_t f, bool omit_out) {
     push_buffer("Usage:  ", 8);
     push_buffer(DEFAULT_ARG, strlen(DEFAULT_ARG));
     push_buffer(" ", 1);
-    push_buffer("-f ", 3);
+    push_buffer("<image.png> -f ", 15);
     push_buffer(f.name, strlen(f.name));
     push_buffer(" ", 1);
     push_buffer(f.usage, strlen(f.usage));

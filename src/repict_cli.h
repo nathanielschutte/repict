@@ -8,7 +8,7 @@
 #include "repict.h"
 
 #define MAX_FUNCTIONS 7             // number of functions implemented
-#define MAX_FORMATS 3               // number of image formats supported
+#define MAX_FORMATS 2               // number of image formats supported
 #define CHANNELS 3                           // color channels on input
 #define DEFAULT_OUT_FILE "out/output.png"    // default output file path
 
@@ -45,11 +45,12 @@ typedef struct {
     char *ext;              // format extension
 } format_t;
 
-static const format_t DEFAULT_OUT_FORMAT = {{F_PNG}, {"png"}};
+static const format_t DEFAULT_OUT_FORMAT = {F_PNG, "png"};
 
 bool verbose;           // print verbose
 bool function_def;      // make sure a function has been given
-bool usage_req;
+bool out_def;           // output has been specified
+bool usage_req;         // print usage on error
 
 file_path_t file_in;    // file to read from
 file_path_t file_out;   // file to output to (default to DEFAULT_OUT)
@@ -74,7 +75,7 @@ FORMAT match_file_format(char *file);
 function_t *match_function(char *in);
 
 /* Handle -f function select and args, call function */
-bool handle_function(const int argc, const char **argv);
+bool handle_function(const int argc, char **argv);
 
 /* Open file for use */
 bool open_file(char *file, FORMAT format);
@@ -83,7 +84,7 @@ bool open_file(char *file, FORMAT format);
 bool write_file(char *file, FORMAT format);
 
 /* Handle flags */
-bool handle_flags(const int argc, const char **argv);
+bool handle_flags(const int argc, char **argv);
 
 /* Print commandline usage of repict for specific function */
 void print_usage_f(function_t f, bool omit_out);
