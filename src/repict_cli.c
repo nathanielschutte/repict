@@ -56,11 +56,10 @@ pixel_t *average_op(pixel_t *data, int argc, char **argv) {
 
 /* Apply B&W filter */
 pixel_t *bw_op(pixel_t *data, int argc, char **argv) {
-    repict_set_channels(CHANNELS);  // in channels (set globally)
-    channels_out = 1;               // out channels
+    pixel_t *p;
+    repict_bw(p, false);
 
-    pixel_t *p = repict_alloc_image(width, height, 1);
-    repict_bw(data, p, width, height, false);
+    channels_out = 1;
     return p;
 }
 
@@ -306,7 +305,7 @@ int main(const int argc, const char** argv) {
     }
 
     // call function exec (TODO: implement multiple calls)
-    repict_set_channels(CHANNELS);
+    repict_set_source(file_in, width, height, CHANNELS);
     pixels_out = function.exec(pixels, f_argc, f_argv);
     free(f_argv);
 
@@ -324,7 +323,8 @@ int main(const int argc, const char** argv) {
         return 0;
     }
 
-    // free image memory, clean
+    // free image memory
+    repict_clean();
     stbi_image_free(pixels);
 }
 
