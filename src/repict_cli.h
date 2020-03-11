@@ -147,7 +147,7 @@ const function_t functions[MAX_FUNCTIONS] = {
         gauss_op,
         1,
         2,
-        "<kernel size> <optl: sigma>",
+        "<sigma> <optl: times>",
         "gauss"
     },
     {

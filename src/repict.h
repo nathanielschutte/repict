@@ -19,20 +19,20 @@
  * ############## How To Use #######################################################
  * ====== BASIC : ======
  * repict_set_source(*input, width, height, channels);  --> must be set before use
- * ...
+ * ...                                                      ...
  * repict_bw(args, ... );                               --> pass filter arguments
- * ...
+ * ...                                                      ...
  * pixel_t *result = repict_get_result();               --> pointer to working image
  * repict_clean()                                       --> clean internal memory
  * 
  * 
  * ====== MORE : ======
- * repict_get_working_channels]();  --> get working image channels
- * repict_get_result_as_copy();     --> get copy of working image
+ * repict_get_working_channels]();                      --> get working image channels
+ * repict_get_result_as_copy();                         --> get copy of working image
  * 
  * 
  * ====== UTILITY : ======
- * repict_alloc_image(width, height, channels)
+ * repict_alloc_image(width, height, channels)          --> alloc image sized chunk
  * 
  * #################################################################################
  * 
@@ -41,6 +41,8 @@
  * TODO:
  * - handle I/O
  * - canny
+ * - optimize convolution
+ * - parse txt into kernel_t array
 */
 
 #ifndef REPICT_IMPLEMENTATION
@@ -58,7 +60,6 @@
 #endif
 
 // algorithm default constants
-#define GAUSS_SIZE_DEFAULT 2f
 #define GAUSS_SIG_DEFAULT 1.4f
 #define GAUSS_LOW_THRESHOLD 2.5f
 #define GAUSS_HIGH_THRESHOLD 7.5f
@@ -69,9 +70,6 @@
 
 // UI
 #define ERROR_MSG "Error:"
-
-// macros
-#define KERNEL(c) (2*c + 1)
 
 
 typedef unsigned char pixel_t;      // 8-bit format for a pixel channel type
@@ -90,15 +88,17 @@ static int32_t r_height          = 0;    // ...
 
 
 // ======== Internal functions ========
-static void m_set_kernel_size(int c, bool raw);
-static void m_generate_kernel_space(int c);
-static void m_convolve(void);                                   // internal convolution using kernel
+static void m_set_kernel_size(int c);
+static kernel_t *m_generate_kernel_space(int c);
+static void m_generate_kernel_internal(int c);
+static void m_convolve(pixel_t *output);                        // internal convolution using kernel, result -> output
+static void m_convolve_kernel(pixel_t *output, kernel_t *ker, int kn);  // convolution using specified kernel, result -> output
 static void m_alloc_working(int32_t w, int32_t h, int bpp);     // allocate the working image
 static void m_swap_working(pixel_t *output);                    // place output in working image
 
 // ======== Repict functions ========
-int repict_gaussian_filter(int rad, float sig);             // compute gaussian
-int repict_convolve(const kernel_t *ker);                   // convolution with input kernel (doesn't change internal)
+int repict_gaussian_filter(float sig, int n, bool keep);             // compute gaussian
+int repict_convolve(kernel_t *ker, int kn);                   // convolution with input kernel (doesn't change internal)
 int repict_bw(bool keep);                                   // apply B&W filter, keep all channels or output to 1 channel
 
 void repict_set_source(pixel_t *in, const int32_t w, const int32_t h, 
@@ -114,37 +114,31 @@ void repict_clean(void);                                                        
 static void error(const char *err);
 
 
-
-/*
- * Kernel set table:
- * c   kernel_n
- * 1 =   3
- * 2 =   5
- * 3 =   7
- * 4 =   9
- * 5 =   11
- * ...
-*/
-static void m_set_kernel_size(int c, bool raw) {
-    if (c < 0 || c > (raw ? KERNEL_MAX : KERNEL_MAX / 2)) {
+static void m_set_kernel_size(int c) {
+    if (c < 0 || c > KERNEL_MAX || (c % 2 == 0)) {
         error("kernel cannot be set to this size");
         return;
-        }
-    if (raw) {
-        kernel_n = c;
     }
-    else {
-        kernel_n = KERNEL(c);
-    }
+    kernel_n = c;
 }
 
 
-static void m_generate_kernel_space(int c) {
-    m_set_kernel_size(c, true);
+static kernel_t *m_generate_kernel_space(int c) {
+    kernel_t *k;
     if (kernel_n == kernel_n_store) {
         return;
     }
-    int size_k = KERNEL(kernel_n) * KERNEL(kernel_n);
+    int size_k = c * c;
+    k = (kernel_t *) malloc(size_k * sizeof(kernel_t));
+    return k;
+}
+
+static void m_generate_kernel_internal(int c) {
+    m_set_kernel_size(c);
+    if (kernel_n == kernel_n_store) {
+        return;
+    }
+    int size_k = kernel_n * kernel_n;
     if (kernel == NULL) {
         kernel = (kernel_t *) malloc(size_k * sizeof(kernel_t));
     }
@@ -180,7 +174,51 @@ static void m_swap_working(pixel_t *output) {
     working_img = output;
 }
 
+/* Convolution of working image and kernel, result placed in */
+static void m_convolve(pixel_t *output) {
+    if (kernel == NULL) {
+        error("no kernel for convolution");
+        return;
+    }
+    m_convolve_kernel(output, kernel, kernel_n);
+}
 
+static void m_convolve_kernel(pixel_t *output, kernel_t *ker, int kn) {
+    if (r_width < kn || r_height < kn) {
+        error("cannot perform convolution - image too small for kernel size");
+        return;
+    }
+    if (kn % 2 == 0) {
+        error("kernel width must be odd");
+        return;
+    }
+    if (output == NULL) {
+        error("no output image provided for convolution");
+    }
+    
+
+    // convolution, unoptimized
+    const int khl = kn / 2;
+    int ksum = 0;
+    for (unsigned int i = 0; i < kn*kn; i++) {
+        ksum += ker[i];
+    }
+
+    for (unsigned int x = 0; x < r_width*r_channels; x += r_channels) {
+        for (unsigned int y = 0; y < r_height*r_channels; y += r_channels) {
+            float acc = 0.0;
+            int c = 0;
+            for (unsigned int i = -khl; i <= khl; i++) {
+                for (unsigned int j = -khl; j <= khl; j++) {
+                    acc += working_img[(x - i) * r_width + y - j] * ker[c];
+                    c++;
+                }
+            }
+            acc /= ksum;
+            output[x * r_width + y] = (pixel_t) acc;
+        }
+    }
+}
 
 pixel_t *repict_alloc_image(int32_t w, int32_t h, int bpp) {
     pixel_t *p;
@@ -292,27 +330,63 @@ int repict_bw(bool keep) {
     return 1;
 }
 
-int repict_convolve(const kernel_t *ker) {
-
+/* H */
+int repict_convolve(kernel_t *ker, int kn) {
+    if (working_img == NULL) {
+        error("image not initialized");
+        return -1;
+    }
+    pixel_t *new_img = repict_alloc_image(r_width, r_height, r_channels);
+    m_convolve_kernel(new_img, ker, kn);
     return 1;
 }
 
+/* keep: all channels vs 1 channel.  sig = gaussian radius, n = filter count */
+int repict_gaussian_filter(float sig, int n, bool keep) {
+    if (working_img == NULL) {
+        error("image not initialized");
+        return -1;
+    }
 
-/* Outputs a single channel image to out_data */
-int repict_gaussian_filter(int rad, float sig) {
-    m_generate_kernel_space(rad);
-
-    float sigma;
-    if (sig < 0) {
-        sigma = GAUSS_SIG_DEFAULT;
+    pixel_t *new_img;
+    if (keep) {
+        new_img = repict_alloc_image(r_width, r_height, r_channels);
     }
     else {
-        sigma = sig;
+        new_img = repict_alloc_image(r_width, r_height, 1);
+        r_channels = 1;
     }
 
-    float sig2 = sig * sig;
-    int kns = KERNEL(kernel_n);
+    float sigma; // use this sigma
+    if (sig < 0)
+        sigma = GAUSS_SIG_DEFAULT;
+    else
+        sigma = sig;
 
+    const int kw = 2*(int)(2 * sigma) + 3; // kernel dimension
+    m_generate_kernel_space(kw);
+
+    const float sig2 = sigma * sigma;
+    const float mean = (float) floor(kw / 2.0);
+    printf("gaussian: size=%d, sigma=%g\n", kw, sigma);
+
+    // generate kernel values for gaussian filter, function of sigma
+    size_t c = 0;
+    for (unsigned int i = 0; i < kw; i ++) {
+        for (unsigned int j = 0; j < kw; j++) {
+            kernel[c] = exp(-0.5 * (pow((i - mean) / sigma, 2.0) + pow((j - mean) / sigma, 2.0)))
+                    / (2 * M_PI * sig2);
+            c++;
+        }
+    }
+
+    for (unsigned int i = 0; i < n; i++) {
+        m_convolve(new_img);
+    }
+    m_swap_working(new_img);
+    if (! keep) {
+        r_channels = 1;
+    }
 
     return 1;
 }

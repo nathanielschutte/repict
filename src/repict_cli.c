@@ -1,16 +1,9 @@
 /*
- * Repict main file
+ * Repict main file:
+ * Handles I/O to multiple filetypes and facilitates use of repict library filters
 */
 
-
 // =========== TODO LIST ===========
-
-// TODO: use STB to convert PNG (and other formats) to BMP
-// repict -c <image.png>
-// outputs image.bmp for use with bmpio (just to make sure my own read/write works)
-
-// TODO: just accept multiple formats and convert to using STB entirely...
-
 // TODO: open a window with output image
 
 #include "repict_cli.h"
@@ -46,7 +39,12 @@ pixel_t *resize_op(pixel_t *data, int argc, char **argv) {
 
 /* Apply gaussian filter kernel size: arg[0] n -> (2n + 1), sigma arg[1] (-1 for default) */
 pixel_t *gauss_op(pixel_t *data, int argc, char **argv) {
-
+    int n = 1;
+    if (argc > 1) {
+        n = atoi(argv[1]);
+    }
+    repict_gaussian_filter((float) atof(argv[0]), n, false);
+    return repict_get_result();
 }
 
 /* Apply fast blur filter kernel size: arg[0] (2n + 1) */
@@ -175,7 +173,7 @@ bool handle_function(const int argc, char **argv) {
     return false;
 }
 
-/* Open file for use, return false on failure */
+/* Open file to pixels for use, return false on failure */
 bool open_file(char *file, FORMAT format) {
     if (file == NULL) {
         return false;
@@ -184,6 +182,7 @@ bool open_file(char *file, FORMAT format) {
     return true;
 }
 
+/* Write pixels_out to file */
 bool write_file(char *file, FORMAT format) {
     if (file == NULL) {
         return false;
@@ -213,7 +212,7 @@ bool handle_flags(const int argc, char **argv) {
                 case 'f': 
                 if (argc >= i) {
                     if (! handle_function(argc - i - 1, argv + i + 1)) {
-                        return false;
+                        return false; // function failure
                     }
                 }
                 break;
@@ -234,16 +233,16 @@ bool handle_flags(const int argc, char **argv) {
             }
         }
     }
-    return true;
 
-    // no flags
+    return true; // no flags still ok
 }
 
 
 /* Main */
 int main(const int argc, char** argv) {
 
-    // cli status
+    // initialization
+    // CLI status
     verbose = false;
     function_def = false;
     out_def = false;
@@ -254,6 +253,7 @@ int main(const int argc, char** argv) {
 
     // for usage buffer
     clear_buffer();
+    // ---------------------------------------------------------------------
 
     // check for help
     if(argc > 1 && strcmp(argv[1], "help") == 0) {
@@ -268,8 +268,11 @@ int main(const int argc, char** argv) {
         return 0;
     }
 
+    // input file
     file_in = argv[1];
+    // ---------------------------------------------------------------------
 
+    // check INPUT FILE FORMAT
     // special case: use r to use default out file as input (out/output.png)
     FORMAT format;
     if (strcmp(file_in, "r") == 0) {
@@ -277,23 +280,23 @@ int main(const int argc, char** argv) {
         format = DEFAULT_OUT_FORMAT.format;
         file_type = DEFAULT_OUT_FORMAT.ext;
     }
-    else {
-
-        // check input file format
+    else { // regular case
         format = match_file_format(file_in);
         if (format == NONE) {
             printf("repict: error reading file format of input\n");
             return 0;
         }
     }
+    // ---------------------------------------------------------------------
 
-    // open file, store data in pixels
+    // OPEN FILE, store data in pixels
     if (! open_file(file_in, format)) {
         printf("repict: failure opening file\n");
         return 0;
     }
+    // ---------------------------------------------------------------------
 
-    // go through all flags
+    // go through all FLAGS
     if (! handle_flags(argc, argv)) {
         // errors handled within
         if (usage_req) {
@@ -302,8 +305,9 @@ int main(const int argc, char** argv) {
         return 0;
     }
     print_verbose("Input filetype:", file_type);
+    // ---------------------------------------------------------------------
 
-    // write output to output file with format specification
+    // write output to OUTPUT FILE with format specification
     FORMAT format_out = match_file_format(file_out);
     if (format_out == NONE) {
         printf("repict: error reading file format of output\n");
@@ -311,7 +315,9 @@ int main(const int argc, char** argv) {
     }
     print_verbose("Output filetype:", file_type);
 
-    // no function defined, only continue if its a format converstion
+    // ---------------------------------------------------------------------
+
+    // NO FUNCTION defined, only continue if its a format converstion
     if (! function_def) {
 
         // output defined, its a format converstion (or just a rewrite/rename)
@@ -332,8 +338,9 @@ int main(const int argc, char** argv) {
         print_usage(false);
         return 0;
     }
+    // ---------------------------------------------------------------------
 
-    // call function exec (TODO: implement multiple calls)
+    // call FUNCTION EXEC (TODO: implement multiple calls)
     repict_set_source(pixels, width, height, CHANNELS, true);
     pixels_out = function.exec(pixels, f_argc, f_argv);     // get output data
     channels_out = repict_get_working_channels();           // get output channels for write
@@ -344,8 +351,9 @@ int main(const int argc, char** argv) {
         printf("repict: failure writing output file\n");
         return 0;
     }
+    // ---------------------------------------------------------------------
 
-    // free image memory
+    // FREE image memory
     repict_clean();
     stbi_image_free(pixels);
 
