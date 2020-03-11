@@ -27,10 +27,11 @@ repict help
 - Default write out file is out/output.png (with no -o flag)
 - Output can be any supported format
 - Each function takes a different set of arguments (each usage in 'help')
+- The CLI is just a way of accessing the library - repict.h is entirely independent
 ### Flags:
-- -f choose function, required and must be first
+- -f choose function
 - -o set image output file
-- -n run multiple times on image (not all functions support this)
+- -n run filter multiple times on image (used only by some functions)
 - -v verbose console output
 - -r run on all images in directory (not supported yet)
 
@@ -47,6 +48,7 @@ repict help
 - Contrast normalization
 - Luminance filter
 - Bump maps
+- Composite of 2 or more images (different composite modes)
 
 ## Misc....
 - Abstract CLI to C library for future use
