@@ -34,7 +34,7 @@ pixel_t *default_op(pixel_t *data, int argc, char **argv) {
 /* Resize to width: args[0] height: args[1] 
     WIP... */
 pixel_t *resize_op(pixel_t *data, int argc, char **argv) {
-    return data;
+    return repict_get_result();
 }
 
 /* Apply gaussian filter kernel size: arg[0] n -> (2n + 1), sigma arg[1] (-1 for default) */
@@ -43,13 +43,18 @@ pixel_t *gauss_op(pixel_t *data, int argc, char **argv) {
     if (argc > 1) {
         n = atoi(argv[1]);
     }
-    repict_gaussian_filter((float) atof(argv[0]), n, false);
+    repict_gaussian_filter((float) atof(argv[0]), n, false); // false = convert to single channel
     return repict_get_result();
 }
 
 /* Apply fast blur filter kernel size: arg[0] (2n + 1) */
 pixel_t *average_op(pixel_t *data, int argc, char **argv) {
-
+    int n = 1;
+    if (argc > 1) {
+        n = atoi(argv[1]);
+    }
+    repict_average_filter(atoi(argv[0]), n, false); // false = convert to single channel
+    return repict_get_result();
 }
 
 /* Apply B&W filter */

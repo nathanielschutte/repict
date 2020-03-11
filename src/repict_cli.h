@@ -125,7 +125,7 @@ void print_help();
 
 // TODO read from file
 /* Implemented function parameter setup */
-const function_t functions[MAX_FUNCTIONS] = {
+function_t functions[MAX_FUNCTIONS] = {
     {
         DEFAULT,
         default_op,
@@ -154,8 +154,8 @@ const function_t functions[MAX_FUNCTIONS] = {
         FAST,
         average_op,
         1,
-        1,
-        "<kernel size>",
+        2,
+        "<kernel size> <optl: times>",
         "average"
     },
     {
