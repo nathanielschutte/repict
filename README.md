@@ -38,10 +38,15 @@ repict help
 ### Current
 - File format conversion
 - B&W filter
+- Gaussian blur
+- Average blur
+- Custom kernel input and convolution
 ### Future
 - Canny edge detection
-- Gaussian blur
-- Custom kernel input and convolution
+- Load kernel from .txt file
+- Contrast normalization
+- Luminance filter
+- Bump maps
 
 ## Misc....
 - Abstract CLI to C library for future use
