@@ -35,6 +35,7 @@
  * 
  * ====== UTILITY : ======
  * repict_alloc_image(width, height, channels)          --> alloc image sized chunk
+ * repict_copy_image(image, width, height, channels)    --> return copy of image
  * 
  * #################################################################################
  * 
@@ -77,6 +78,14 @@
 
 // UI
 #define ERROR_MSG "Error:"
+
+// kernel edge method
+#define REPICT_EDGE_ALL 0
+#define REPICT_EDGE_TRASH 1
+
+#ifndef REPICT_EDGE_STRATEGY
+#define REPICT_EDGE_STRATEGY REPICT_EDGE_ALL
+#endif
 
 
 typedef unsigned char pixel_t;      // 8-bit format for a pixel channel type
@@ -221,11 +230,18 @@ static void m_convolve_kernel(pixel_t *input, pixel_t *output, kernel_t *ker, in
     for (unsigned int x = 0; x < r_width; x += r_channels) {
         for (unsigned int y = 0; y < r_height; y += r_channels) {
 
-            if (x >= khl && x < xn && y >= khl && y < yn) {
+            if ((x >= khl && x < xn && y >= khl && y < yn) || REPICT_EDGE_STRATEGY == REPICT_EDGE_ALL) {
                 float acc = 0.0;
                 int c = 0;
                 for (int i = -khl; i <= khl; i++) {
                     for (int j = -khl; j <= khl; j++) {
+                        // for this strategy, kernel should operate even on edge pixels
+                        if (REPICT_EDGE_STRATEGY == REPICT_EDGE_ALL) {
+                            // don't overstep edges
+                            if (y + j < 0 || y + j >= r_height || x + i < 0 || x + i >= r_width) {
+                                continue;
+                            }
+                        }
                         acc += input[(y - j) * stride + x - i] * ker[c];
                         c++;
                     }
@@ -234,7 +250,14 @@ static void m_convolve_kernel(pixel_t *input, pixel_t *output, kernel_t *ker, in
                 output[y * stride + x] = (pixel_t) acc;
             }
             else {
-                output[y * stride + x] = (pixel_t) TRASH_VALUE;
+                switch (REPICT_EDGE_STRATEGY) {
+                    case REPICT_EDGE_ALL:
+                    output[y * stride + x] = (pixel_t) TRASH_VALUE;
+                    break;
+
+                    default:
+                    output[y * stride + x] = (pixel_t) TRASH_VALUE;
+                }
             }
         }
     }
